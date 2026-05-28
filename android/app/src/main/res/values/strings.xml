@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Zomalaa Draw</string>
+    <string name="title_activity_main">Zomalaa Draw</string>
+    <string name="package_name">com.zomalaa.drawingapp</string>
+    <string name="custom_url_scheme">com.zomalaa.drawingapp</string>
+</resources>

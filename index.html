@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="ar" dir="ltr">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0D0D0D" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  
+  <!-- SEO & Social Sharing -->
+  <meta name="description" content="DrawFlow — The ultimate real-time collaborative drawing platform for artists. Professional tools, smart fill, and seamless group sessions." />
+  <meta property="og:title" content="DrawFlow — Professional Drawing" />
+  <meta property="og:description" content="Draw together in real-time with professional-grade brushes and smart tools." />
+  <meta property="og:type" content="website" />
+  
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%234D9EFF%22/><path d=%22M30 50 L70 50 M50 30 L50 70%22 stroke=%22white%22 stroke-width=%228%22/></svg>" />
+  <title>DrawFlow | Collaborative Digital Art</title>
+  <script>
+    // OffscreenCanvas polyfill for older Android WebView versions
+    if (typeof OffscreenCanvas === 'undefined') {
+      window.OffscreenCanvas = class OffscreenCanvas {
+        constructor(w, h) {
+          const c = document.createElement('canvas');
+          c.width = w;
+          c.height = h;
+          c.getContext = c.getContext.bind(c);
+          c.transferToImageBitmap = undefined;
+          return c;
+        }
+      };
+    }
+  </script>
+  <script>
+
+    window.addEventListener('error', function (e) {
+      document.body.innerHTML += '<div style="position:fixed;top:10%;left:10%;right:10%;background:red;color:white;z-index:99999;padding:20px;font-size:24px;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,0.5);">' +
+        '<b>Error:</b> ' + e.message + '<br><small>' + e.filename + ':' + e.lineno + '</small></div>';
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+      document.body.innerHTML += '<div style="position:fixed;top:30%;left:10%;right:10%;background:red;color:white;z-index:99999;padding:20px;font-size:24px;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,0.5);">' +
+        '<b>Promise Error:</b> ' + (e.reason && e.reason.message ? e.reason.message : String(e.reason)) + '</div>';
+    });
+  </script>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+
+<body>
+  <div id="app">
+    <!-- Top Bar -->
+    <div id="top-bar">
+      <div id="top-left">
+        <button id="btn-menu" class="icon-btn" title="Menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+        <span id="project-name" contenteditable="true" spellcheck="false">Untitled Project</span>
+        <button id="btn-purge" class="small-btn" onclick="window.purgeCache()" style="margin-left:10px; opacity:0.6;"
+          title="Emergency: Clear Cache & Reload">Fix Cache</button>
+      </div>
+      <div id="top-center">
+        <button id="btn-undo" class="icon-btn" title="Undo (Ctrl+Z)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 14 4 9 9 4" />
+            <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
+          </svg>
+        </button>
+        <button id="btn-redo" class="icon-btn" title="Redo (Ctrl+Y)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 14 20 9 15 4" />
+            <path d="M4 20v-7a4 4 0 0 0 4-4h12" />
+          </svg>
+        </button>
+        <div style="width: 1px; height: 20px; background: var(--border); margin: 0 4px;"></div>
+        <button id="btn-grid" class="icon-btn" title="Toggle Grid (G)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 3h18v18H3zM3 12h18M12 3v18" />
+          </svg>
+        </button>
+        <button id="btn-subview" class="icon-btn" title="Toggle Reference SubView (Shift+R)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+        </button>
+        <button id="btn-snap" class="icon-btn" title="Toggle Snapping">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3" fill="currentColor" />
+            <path d="M12 2v2M12 20v2M2 12h2M20 12h2" />
+          </svg>
+        </button>
+        <button id="btn-guides" class="icon-btn" title="Perspective & Symmetry Guides">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 21L3 3M21 3L3 21" />
+            <circle cx="12" cy="12" r="9" />
+          </svg>
+        </button>
+        <button id="btn-clear-rulers" class="icon-btn" title="Clear All Rulers (R)" style="color: #ef4444;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div id="top-right">
+        <button id="mobile-panel-toggle" title="Settings / Layers">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <div id="top-palette" class="top-palette-row"></div>
+        <div id="collab-status"><span class="status-dot"></span><span class="status-text">Offline</span></div>
+        <button id="btn-collab" class="btn-primary" title="Collaborate">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="9" cy="7" r="4" />
+            <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            <path d="M21 21v-2a4 4 0 0 0-3-3.87" />
+          </svg>
+          <span class="btn-text">Collaborate</span>
+        </button>
+        <button id="btn-canvas-palette" class="icon-btn" title="Extract Palette from Canvas" style="margin-right: 8px; color: var(--accent);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </button>
+        <button id="btn-brush-library" class="icon-btn" title="Brush Library" style="color: #a78bfa; position:relative;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.07"/>
+            <path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1 1 6.23.504 7-3 .24-.93-.36-2.04-2-2.04z"/>
+          </svg>
+          <span class="active-brush-dot"></span>
+        </button>
+        <button id="btn-export" class="icon-btn" title="Export">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Smart Shading Bar -->
+    <div id="smart-shading-bar" class="shading-bar-hidden">
+      <div class="shading-bar-content">
+        <div class="shading-label">✨ Smart Shading</div>
+        <div id="shading-swatches" class="shading-row">
+          <div class="shading-swatch-item" data-type="deep-shadow">
+            <div class="ss-box"></div>
+            <span>Deep</span>
+          </div>
+          <div class="shading-swatch-item" data-type="shadow">
+            <div class="ss-box"></div>
+            <span>Shadow</span>
+          </div>
+          <div class="shading-swatch-item active" data-type="base">
+            <div class="ss-box" style="background: var(--accent);"></div>
+            <span>Base</span>
+          </div>
+          <div class="shading-swatch-item" data-type="highlight">
+            <div class="ss-box"></div>
+            <span>Light</span>
+          </div>
+          <div class="shading-swatch-item" data-type="glow">
+            <div class="ss-box"></div>
+            <span>Glow</span>
+          </div>
+        </div>
+        <div class="shading-bar-separator"></div>
+        <button id="btn-toggle-auto-shading" class="shading-mode-btn">
+          Auto Mode
+        </button>
+      </div>
+    </div>
+
+    <!-- Left Toolbar -->
+    <div id="left-toolbar">
+      <div class="tool-group">
+        <button id="tool-brush" class="tool-btn active" data-tool="brush" title="Brush (B)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.07" />
+            <path
+              d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1 1 6.23.504 7-3 .24-.93-.36-2.04-2-2.04z" />
+          </svg>
+        </button>
+        <button id="tool-eraser" class="tool-btn" data-tool="eraser" title="Eraser (E)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" />
+            <path d="M22 21H7" />
+            <path d="m5 11 9 9" />
+          </svg>
+        </button>
+        <button id="tool-smudge" class="tool-btn" data-tool="smudge" title="Smudge (S)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m14 3 7 7-9.5 9.5a2 2 0 0 1-2.83 0L5.5 15.8a2 2 0 0 1 0-2.83z" />
+            <path d="m4 20 1.5-1.5" />
+            <path d="M3 12h1" />
+            <path d="M12 3v1" />
+          </svg>
+        </button>
+        <button id="tool-selection" class="tool-btn" data-tool="selection" title="Selection (V)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 4h4v4H4z" />
+            <path d="M16 4h4v4h-4z" />
+            <path d="M16 16h4v4h-4z" />
+            <path d="M8 20h8" />
+          </svg>
+        </button>
+        <button id="tool-lasso" class="tool-btn" data-tool="lasso" title="Lasso Selection (L)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 3c-2 0-3 2.5-3 4s3 7 6 7 5-1 6-3 1-4-1-5-4-3-8-3z" />
+            <path d="M15 11l6 6" />
+            <circle cx="21" cy="21" r="2" />
+          </svg>
+        </button>
+        <button id="tool-fill" class="tool-btn" data-tool="fill" title="Bucket Fill (F)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5z" />
+            <path d="M2 7v10c0 1.1.9 2 2 2h16a2 2 0 0 0 2-2V7" />
+            <path d="M12 12c2 0 4 2 4 4s-2 4-4 4-4-2-4-4 2-4 4-4z" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Selection Operations Toolbar (Floating) -->
+      <div id="selection-toolbar" class="hidden">
+        <button class="sel-btn" id="sel-cut" title="Cut Selected Area"><i class="fas fa-cut"></i></button>
+        <button class="sel-btn" id="sel-copy" title="Copy Selected Area"><i class="fas fa-copy"></i></button>
+        <button class="sel-btn" id="sel-paste" title="Paste Selection"><i class="fas fa-paste"></i></button>
+        <div class="sel-sep"></div>
+        <div class="sel-slider-group">
+          <span class="sel-label">Scale</span>
+          <input type="range" id="sel-scale" min="0.1" max="3" step="0.01" value="1">
+        </div>
+        <div class="sel-slider-group">
+          <span class="sel-label">Rotate</span>
+          <input type="range" id="sel-rotate" min="-180" max="180" step="1" value="0">
+        </div>
+        <div class="sel-sep"></div>
+        <button class="sel-btn success" id="sel-commit" title="Commit Transformation (Enter)"><i class="fas fa-check"></i></button>
+        <button class="sel-btn danger" id="sel-clear" title="Clear/Cancel Selection (Esc)"><i class="fas fa-times"></i></button>
+      </div>
+
+      <!-- Geometry & Text Tools -->
+      <div class="tool-group" style="margin-top: 8px;">
+        <button id="tool-shape-rect" class="tool-btn" data-tool="shape-rect" title="Rectangle Tool">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+          </svg>
+        </button>
+        <button id="tool-shape-circle" class="tool-btn" data-tool="shape-circle" title="Circle Tool">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+          </svg>
+        </button>
+        <button id="tool-shape-line" class="tool-btn" data-tool="shape-line" title="Line Tool">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="4" y1="20" x2="20" y2="4" />
+          </svg>
+        </button>
+        <button id="tool-text" class="tool-btn" data-tool="text" title="Text Tool (T)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="4 7 4 4 20 4 20 7" />
+            <line x1="9" y1="20" x2="15" y2="20" />
+            <line x1="12" y1="4" x2="12" y2="20" />
+          </svg>
+        </button>
+        <button id="tool-eyedropper" class="tool-btn" data-tool="eyedropper" title="Eyedropper (I)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m2 22 1-1h3l9-9" />
+            <path d="M3 21v-3l9-9" />
+            <path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8" />
+          </svg>
+        </button>
+        <button id="tool-gradient" class="tool-btn" data-tool="gradient" title="Gradient Fill (G)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <line x1="3" y1="3" x2="21" y2="21" />
+            <line x1="12" y1="3" x2="21" y2="12" />
+            <line x1="3" y1="12" x2="12" y2="21" />
+          </svg>
+        </button>
+        <button id="tool-ruler" class="tool-btn" data-tool="ruler" title="Ruler / Measure (R)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21.3 15.3l-5-5L15 11.6l5 5 1.3-1.3z" />
+            <path d="M16.3 10.3l-10-10L5 1.6l10 10 1.3-1.3z" />
+            <path d="M2 22l1.1-1.1" />
+            <path d="M12 12l2.3 2.3" />
+            <path d="M9 9l2.3 2.3" />
+            <path d="M6 6l2.3 2.3" />
+          </svg>
+        </button>
+      </div>
+      <div class="tool-separator"></div>
+      <div class="tool-group">
+        <!-- Current Color -->
+        <button id="color-swatch" class="color-swatch-btn" title="Color" draggable="true"></button>
+        <!-- Brush Size -->
+        <div id="size-indicator" title="Brush Size"></div>
+      </div>
+      <div class="tool-separator"></div>
+      <div class="tool-group">
+        <button id="btn-zoom-in" class="tool-btn" title="Zoom In (+)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            <line x1="11" y1="8" x2="11" y2="14" />
+            <line x1="8" y1="11" x2="14" y2="11" />
+          </svg>
+        </button>
+        <button id="btn-zoom-out" class="tool-btn" title="Zoom Out (-)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            <line x1="8" y1="11" x2="14" y2="11" />
+          </svg>
+        </button>
+        <button id="btn-zoom-reset" class="tool-btn" title="Reset View (0)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Realistic Color Modifier Panel (Hidden by default) -->
+    <div id="rcm-panel" class="modal-glass rcm-hidden">
+      <div class="rcm-header">
+        <span>✨ Smart Color</span>
+        <button id="rcm-close" class="icon-btn-small" style="background:none; border:none; color:#fff; cursor:pointer;">✕</button>
+      </div>
+      
+      <!-- Directional Control -->
+      <div class="rcm-direction-container">
+        <div class="section-label">Light Direction</div>
+        <div class="rcm-dial-wrapper" id="rcm-dial-wrapper">
+          <div id="rcm-dial">
+            <div id="rcm-dial-indicator">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <line x1="12" y1="19" x2="12" y2="5"></line>
+                <polyline points="5 12 12 5 19 12"></polyline>
+              </svg>
+            </div>
+          </div>
+        </div>
+        <div id="rcm-angle-value">Angle: 0°</div>
+      </div>
+
+      <!-- Sliders -->
+      <div class="rcm-sliders">
+        <div class="slider-row rcm-row">
+          <label title="Shadow vs Highlight">Luminance</label>
+          <input type="range" id="rcm-light-shadow" min="-50" max="50" value="0">
+        </div>
+        <div class="slider-row rcm-row">
+          <label title="Desaturate">Fade Effect</label>
+          <input type="range" id="rcm-fade" min="0" max="100" value="0">
+        </div>
+        <div class="slider-row rcm-row">
+          <label title="Saturate">Color Boost</label>
+          <input type="range" id="rcm-boost" min="0" max="100" value="0">
+        </div>
+      </div>
+
+      <!-- Auto Realism -->
+      <button id="btn-auto-realism" class="full-width" style="margin-top: 12px; background: linear-gradient(135deg, #7b2fff, #ff6b35); border:none; color:#fff; padding:6px; border-radius:6px; font-weight:600; cursor:pointer;">
+        ✨ Auto Realism
+      </button>
+    </div>
+
+    <!-- Canvas Container -->
+    <div id="canvas-container">
+      <canvas id="main-canvas"></canvas>
+      <canvas id="overlay-canvas"></canvas>
+      <div id="zoom-indicator">100%</div>
+    </div>
+
+    <!-- Right Panel -->
+    <div id="right-panel">
+      <div id="panel-tabs">
+        <button class="panel-tab active" data-panel="colors">Colors</button>
+        <button class="panel-tab" data-panel="brushes">Brushes</button>
+        <button class="panel-tab" data-panel="layers">Layers</button>
+      </div>
+
+      <!-- Colors Panel -->
+      <div id="panel-colors" class="panel-content active">
+        <canvas id="color-wheel" width="200" height="200"></canvas>
+        <canvas id="color-square" width="200" height="150"></canvas>
+        <div id="color-sliders">
+          <div class="slider-row">
+            <label>H</label>
+            <input type="range" id="slider-h" min="0" max="360" value="0" />
+            <input type="number" id="input-h" min="0" max="360" value="0" />
+          </div>
+          <div class="slider-row">
+            <label>S</label>
+            <input type="range" id="slider-s" min="0" max="100" value="0" />
+            <input type="number" id="input-s" min="0" max="100" value="0" />
+          </div>
+          <div class="slider-row">
+            <label>B</label>
+            <input type="range" id="slider-b" min="0" max="100" value="100" />
+            <input type="number" id="input-b" min="0" max="100" value="100" />
+          </div>
+          <div class="slider-row">
+            <label>A</label>
+            <input type="range" id="slider-a" min="0" max="100" value="100" />
+            <input type="number" id="input-a" min="0" max="100" value="100" />
+          </div>
+          <div class="hex-row">
+            <label>#</label>
+            <input type="text" id="input-hex" maxlength="6" value="000000" spellcheck="false" />
+          </div>
+        </div>
+        <div id="fill-settings" class="panel-section" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px;">
+          <div class="section-label" style="margin-bottom: 10px; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+            Fill Settings (Smart)
+          </div>
+          <div class="slider-row-simple">
+            <div style="display:flex; justify-content:space-between; font-size:10px; color:#888; margin-bottom:4px;">
+              <span>Tolerance</span>
+              <span id="fill-tolerance-val">32%</span>
+            </div>
+            <input type="range" id="fill-tolerance" min="0" max="100" value="32" class="modern-slider">
+          </div>
+          <div class="slider-row-simple" style="margin-top:12px;">
+            <div style="display:flex; justify-content:space-between; font-size:10px; color:#888; margin-bottom:4px;">
+              <span>Gap Closing (Pixels)</span>
+              <span id="gap-fill-val">4px</span>
+            </div>
+            <input type="range" id="gap-fill" min="0" max="20" value="4" class="modern-slider">
+          </div>
+        </div>
+
+        <div id="color-history">
+          <div class="section-label">Recent Colors</div>
+          <div id="color-history-swatches"></div>
+        </div>
+        <div id="harmony-section">
+          <div class="section-label">Harmony</div>
+          <div id="harmony-buttons">
+            <button class="harmony-btn active" data-mode="complementary">Comp</button>
+            <button class="harmony-btn" data-mode="analogous">Analog</button>
+            <button class="harmony-btn" data-mode="triadic">Triadic</button>
+          </div>
+          <div id="harmony-swatches"></div>
+        </div>
+
+        <!-- Gradient Stroke -->
+        <div class="section-label gradient-section-label"
+          style="display:flex;justify-content:space-between;align-items:center;">
+          <span>Gradient Stroke</span>
+          <label class="toggle-switch" title="Enable gradient stroke">
+            <input type="checkbox" id="gradient-toggle" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        
+        <div id="gradient-panel" class="gradient-panel collapsed" style="display:none; padding-top: 5px;">
+          <!-- Auto-sample toggle -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-size:11px;color:rgba(255,255,255,0.7);">
+            <span>Auto-sample start color</span>
+            <label class="toggle-switch small">
+              <input type="checkbox" id="grad-auto-sample" checked>
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+
+          <!-- Realism Presets -->
+          <div class="grad-realism-row" style="margin-bottom:14px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-size:11px; font-weight:600; color:var(--accent);">Realism Preset</span>
+              <select id="grad-realism-mode" style="background:var(--bg-elevated); color:var(--text-primary); border:1px solid var(--border); border-radius:4px; padding:2px 4px; font-size:11px; width:100px;">
+                <option value="manual">Manual</option>
+                <option value="shadow">Shadow (ظل)</option>
+                <option value="highlight">Highlight (ضوء)</option>
+                <option value="fade">Fade/Mist (بهتان)</option>
+              </select>
+            </div>
+            <div id="grad-intensity-container" style="display:none;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="font-size:10px; color:#888;">Intensity</span>
+                <span id="grad-intensity-val" style="font-size:10px; color:var(--accent);">50%</span>
+              </div>
+              <input type="range" id="grad-intensity" min="0" max="100" value="50" style="width:100%; height:4px; accent-color:var(--accent); cursor:pointer;">
+            </div>
+          </div>
+
+          <div class="gradient-colors-row" style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+            <div class="grad-color-slot" style="flex:1;text-align:center;position:relative;">
+              <input type="color" id="grad-color-a" value="#ff6b35"
+                style="width:100%;height:32px;border:none;border-radius:6px;cursor:pointer;background:none;" />
+              <button class="grad-sample-btn" data-target="a" title="Sample start color from canvas">⌖</button>
+              <div style="font-size:10px;color:#888;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px;">Start</div>
+            </div>
+            <button id="grad-swap" class="small-btn" title="Swap colors"
+              style="padding:4px 8px;font-size:16px;background:rgba(255,255,255,0.05);border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;">⇄</button>
+            <div class="grad-color-slot" style="flex:1;text-align:center;position:relative;">
+              <input type="color" id="grad-color-b" value="#7b2fff"
+                style="width:100%;height:32px;border:none;border-radius:6px;cursor:pointer;background:none;" />
+              <button class="grad-sample-btn" data-target="b" title="Sample end color from canvas">⌖</button>
+              <div style="font-size:10px;color:#888;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px;">End</div>
+            </div>
+          </div>
+
+          <div class="section-label" style="margin-top:10px;display:flex;justify-content:space-between;">
+            <span>Mode</span>
+            <select id="grad-type"
+              style="background:var(--bg-elevated);color:var(--text-primary);border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:11px;">
+              <option value="distance">Distance (Stroke Length)</option>
+              <option value="position">Position (Directional)</option>
+            </select>
+          </div>
+
+          <div class="section-label" style="margin-top:10px">Transition Length</div>
+          <div class="big-slider-row" style="display:flex;align-items:center;gap:10px;">
+            <input type="range" id="grad-length" min="50" max="2000" value="600" style="flex:1" />
+            <span id="grad-length-val" style="font-size:12px;color:#888;width:40px;text-align:right;">600px</span>
+          </div>
+          
+          <!-- Gradient Preview -->
+          <div class="section-label" style="margin-top:10px">Preview</div>
+          <canvas id="gradientPreviewCanvas" width="220" height="24" style="width:100%; height:24px; border-radius:4px; border:1px solid rgba(255,255,255,0.1);"></canvas>
+        </div>
+      </div>
+
+      <!-- Brushes Panel -->
+      <div id="panel-brushes" class="panel-content">
+        <div class="section-label">Brush Size</div>
+        <div class="big-slider-row">
+          <input type="range" id="brush-size" min="1" max="200" value="20" />
+          <span id="brush-size-val">20px</span>
+        </div>
+        <div class="section-label">Opacity</div>
+        <div class="big-slider-row">
+          <input type="range" id="brush-opacity" min="1" max="100" value="100" />
+          <span id="brush-opacity-val">100%</span>
+        </div>
+        <div class="section-label">Flow</div>
+        <div class="big-slider-row">
+          <input type="range" id="brush-flow" min="1" max="100" value="85" />
+          <span id="brush-flow-val">85%</span>
+        </div>
+        <div class="big-slider-row">
+          <input type="range" id="brush-smooth" min="0" max="100" value="50" />
+          <span id="brush-smooth-val">50%</span>
+        </div>
+        
+        <div class="section-label" style="color:var(--accent);">Professional SilkStroke</div>
+        <div class="big-slider-row">
+          <div style="font-size:10px; color:#888; flex:1;">Stabilization Weight</div>
+          <input type="range" id="brush-silk" min="0" max="100" value="30" />
+          <span id="brush-silk-val" style="width:36px; text-align:right;">30%</span>
+        </div>
+        <div class="big-slider-row">
+          <div style="font-size:10px; color:#888; flex:1;">Velocity Taper</div>
+          <input type="range" id="brush-taper" min="0" max="100" value="20" />
+          <span id="brush-taper-val" style="width:36px; text-align:right;">20%</span>
+        </div>
+
+        <div class="section-label" style="color:#A78BFA;">QuickSnap Sensitivity</div>
+        <div class="big-slider-row">
+          <div style="font-size:10px; color:#888; flex:1;">Dwell Time (ms)</div>
+          <input type="range" id="quicksnap-dwell" min="200" max="1200" value="550" step="50" />
+          <span id="quicksnap-dwell-val" style="width:50px; text-align:right;">550ms</span>
+        </div>
+
+        <div class="section-label">Live Preview</div>
+        <canvas id="brush-preview" width="220" height="70"></canvas>
+
+        <div class="section-label">Brush Library</div>
+        <!-- Category tabs -->
+        <div id="brush-cat-tabs">
+          <button class="bcat-btn active" data-cat="arabic">🕌 Arabic</button>
+          <button class="bcat-btn" data-cat="calligraphy">✒️ Calli</button>
+          <button class="bcat-btn" data-cat="sketch">✏️ Sketch</button>
+          <button class="bcat-btn" data-cat="ink">🖊️ Ink</button>
+          <button class="bcat-btn" data-cat="watercolor">💧 Water</button>
+          <button class="bcat-btn" data-cat="effects">✨ FX</button>
+        </div>
+        <div id="brush-library"></div>
+
+        <!-- Advanced Brush Engine 2.0 Settings -->
+        <div class="advanced-settings-header" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: var(--accent); font-weight: 600; font-size: 13px;">Pro Brush Settings</span>
+          <button id="btn-reset-brush" class="small-btn" style="font-size: 10px; opacity: 0.6;">Reset</button>
+        </div>
+
+        <div class="advanced-settings-panel" style="margin-top: 12px; display: flex; flex-direction: column; gap: 14px;">
+          <!-- Shape & Grain Selection -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="select-group">
+              <label style="font-size: 10px; color: #888; display: block; margin-bottom: 4px;">Tip Shape</label>
+              <select id="brush-shape" style="width: 100%; background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; font-size: 12px;">
+                <option value="round">Round</option>
+                <option value="nib">Calligraphy Nib</option>
+                <option value="flat">Flat Brush</option>
+                <option value="splatter">Splatter</option>
+              </select>
+            </div>
+            <div class="select-group">
+              <label style="font-size: 10px; color: #888; display: block; margin-bottom: 4px;">Paper Grain</label>
+              <select id="brush-grain" style="width: 100%; background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; font-size: 12px;">
+                <option value="noise">Fine Noise</option>
+                <option value="canvas">Canvas Web</option>
+                <option value="gritty">Gritty Charcoal</option>
+                <option value="smooth">Smooth Ink</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Hardness Slider -->
+          <div class="slider-row-simple">
+            <div style="display:flex; justify-content:space-between; font-size: 10px; color: #888; margin-bottom: 4px;">
+              <span>Edge Hardness</span>
+              <span id="brush-hardness-val">80%</span>
+            </div>
+            <input type="range" id="brush-hardness" min="0" max="100" value="80" class="modern-slider">
+          </div>
+
+          <!-- Grain Scale Slider -->
+          <div class="slider-row-simple">
+            <div style="display:flex; justify-content:space-between; font-size: 10px; color: #888; margin-bottom: 4px;">
+              <span>Grain Scale</span>
+              <span id="brush-grain-scale-val">100%</span>
+            </div>
+            <input type="range" id="brush-grain-scale" min="10" max="500" value="100" class="modern-slider">
+          </div>
+
+          <!-- Grain Brightness Slider -->
+          <div class="slider-row-simple">
+            <div style="display:flex; justify-content:space-between; font-size: 10px; color: #888; margin-bottom: 4px;">
+              <span>Grain Texture Brightness</span>
+              <span id="brush-grain-bright-val">0</span>
+            </div>
+            <input type="range" id="brush-grain-bright" min="-100" max="100" value="0" class="modern-slider">
+          </div>
+        </div>
+      </div>
+
+      <!-- Layers Panel -->
+      <div id="panel-layers" class="panel-content">
+        <div id="layers-toolbar">
+          <button id="btn-add-layer" class="small-btn">+ Add Layer</button>
+          <select id="blend-mode-select">
+            <option value="source-over">Normal</option>
+            <option value="multiply">Multiply</option>
+            <option value="screen">Screen</option>
+            <option value="overlay">Overlay</option>
+            <option value="darken">Darken</option>
+            <option value="lighten">Lighten</option>
+            <option value="color-dodge">Color Dodge</option>
+            <option value="color-burn">Color Burn</option>
+            <option value="hard-light">Hard Light</option>
+            <option value="soft-light">Soft Light</option>
+            <option value="difference">Difference</option>
+            <option value="exclusion">Exclusion</option>
+          </select>
+        </div>
+        <div id="layers-list"></div>
+      </div>
+    </div>
+
+
+    <!-- Export Modal -->
+    <div id="export-modal" class="modal hidden">
+      <div class="modal-overlay"></div>
+      <div class="modal-content">
+        <button class="modal-close" id="export-modal-close">✕</button>
+        <h2>Export</h2>
+        <div class="export-options">
+          <button class="export-btn" data-format="png">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            </svg>
+            PNG (Full Quality)
+          </button>
+          <button class="export-btn" data-format="jpeg">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            </svg>
+            JPEG (Compressed)
+          </button>
+          <button class="export-btn" data-format="webp">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            </svg>
+            WebP (Web Optimized)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.purgeCache = async function () {
+        console.log('Purging caches...');
+        try {
+          const sws = await navigator.serviceWorker.getRegistrations();
+          for (const sw of sws) await sw.unregister();
+          if ('caches' in window) {
+            const keys = await caches.keys();
+            for (const key of keys) await caches.delete(key);
+          }
+          console.log('Cache purged. Reloading...');
+          window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
+        } catch (e) {
+          console.error('Purge failed:', e);
+          window.location.reload(true);
+        }
+      };
+    </script>
+    <!-- Palette Modal -->
+  <div id="palette-modal" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content" style="width: min(460px, 95vw);">
+      <div class="modal-header">
+        <span style="display:flex; align-items:center; gap:8px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          Canvas Palette & Realism
+        </span>
+        <button class="modal-close" id="palette-modal-close">✕</button>
+      </div>
+      
+      <div class="modal-body" style="padding-top: 0;">
+        <p style="font-size: 12px; color: #888; margin-bottom: 16px;">Detected unique colors on your canvas. Click a color to generate realism variants.</p>
+        
+        <div class="modal-section-label">Canvas Colors</div>
+        <div id="canvas-colors-grid" class="colors-grid">
+          <!-- Populated by JS -->
+          <div style="grid-column: 1/-1; text-align: center; padding: 20px; color: #555; font-size: 12px;">Scanning canvas...</div>
+        </div>
+
+        <div id="shading-variants-section" class="hidden" style="margin-top: 24px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px;">
+          <div class="modal-section-label">Realism Shading Variants</div>
+          <div class="shading-variants-container">
+            <div class="shading-variant-item" id="variant-deep-shadow">
+              <div class="variant-swatch"></div>
+              <span>Deep Shadow</span>
+            </div>
+            <div class="shading-variant-item" id="variant-shadow">
+              <div class="variant-swatch"></div>
+              <span>Shadow</span>
+            </div>
+            <div class="shading-variant-item" id="variant-midtone">
+              <div class="variant-swatch"></div>
+              <span>Midtone</span>
+            </div>
+            <div class="shading-variant-item" id="variant-highlight">
+              <div class="variant-swatch"></div>
+              <span>Highlight</span>
+            </div>
+            <div class="shading-variant-item" id="variant-glow">
+              <div class="variant-swatch"></div>
+              <span>Glow</span>
+            </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Collaboration Modal -->
+  <div id="collab-modal" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content" style="width: min(400px, 95vw);">
+      <div class="modal-header">
+        <span style="display:flex; align-items:center; gap:8px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <line x1="19" y1="8" x2="19" y2="14" />
+            <line x1="22" y1="11" x2="16" y2="11" />
+          </svg>
+          Real-time Collaboration
+        </span>
+        <button class="modal-close" id="collab-modal-close">✕</button>
+      </div>
+      <div class="modal-body" style="display:flex; flex-direction:column; gap:20px; padding:20px 0;">
+        <!-- State: Disconnected -->
+        <div id="collab-disconnected" style="display:flex; flex-direction:column; gap:16px;">
+          <div style="background:var(--bg-elevated); border:1px solid var(--border); border-radius:12px; padding:16px;">
+            <div class="modal-section-label" style="display:flex; justify-content:space-between; align-items:center;">
+              Server IP (Wi-Fi)
+              <span style="font-size:9px; color:var(--accent);">Optional</span>
+            </div>
+            <input type="text" id="input-collab-server" placeholder="Default: Auto" style="width:100%; height:36px; background:rgba(0,0,0,0.2); border:1px solid var(--border); color:var(--text-primary); border-radius:6px; padding:0 10px; margin-top:8px; font-family:monospace; outline:none;">
+          </div>
+
+          <div style="background:var(--bg-elevated); border:1px solid var(--border); border-radius:12px; padding:16px;">
+            <div class="modal-section-label">Host a Session</div>
+            <p style="font-size:12px; color:var(--text-secondary); margin-bottom:12px;">Start a new room and share the code with friends to draw together.</p>
+            <button id="btn-collab-host" class="btn-primary full-width">Create New Session</button>
+          </div>
+          <div class="divider">OR</div>
+          <div style="background:var(--bg-elevated); border:1px solid var(--border); border-radius:12px; padding:16px;">
+            <div class="modal-section-label">Join a Session</div>
+            <div class="join-row">
+              <input type="text" id="input-collab-code" placeholder="CODE" maxlength="6">
+              <button id="btn-collab-join" class="btn-primary" style="height:40px; padding:0 20px;">Join</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- State: Connected -->
+        <div id="collab-connected" style="display:none; flex-direction:column; gap:16px;">
+          <div class="session-code-display">
+            <span style="font-size:10px; text-transform:uppercase; color:var(--text-tertiary); letter-spacing:0.1em;">Your Session Code</span>
+            <div id="session-code-value">------</div>
+            <div style="display:flex; gap:8px; justify-content:center; margin-top:12px;">
+              <button id="btn-copy-code" class="small-btn">Copy Link</button>
+              <button id="btn-share-wa" class="small-btn" style="background:#25D366; color:#fff; border:none;">📱 WhatsApp</button>
+            </div>
+          </div>
+          <div class="modal-section-label">Active Collaborators</div>
+          <div id="collab-user-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+          <div id="collab-ping">Latency: --ms</div>
+          <button id="btn-collab-leave" class="small-btn danger" style="width:100%; padding:10px; margin-top:10px;">Leave Session</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       BRUSH BOTTOM SHEET
+  ════════════════════════════════════════════ -->
+  <div id="brush-sheet-backdrop"></div>
+  <div id="brush-bottom-sheet" role="dialog" aria-modal="true" aria-label="Brush Library">
+    <!-- Drag Handle -->
+    <div class="brush-sheet-handle" id="brush-sheet-handle">
+      <div class="brush-sheet-handle-bar"></div>
+    </div>
+
+    <!-- Header -->
+    <div class="brush-sheet-header">
+      <span class="brush-sheet-title">Brush Library</span>
+      <button class="brush-sheet-close" id="brush-sheet-close" aria-label="Close">✕</button>
+    </div>
+
+    <!-- Category Tabs -->
+    <div class="brush-sheet-tabs" id="brush-sheet-tabs">
+      <button class="bs-tab active" data-cat="all">All</button>
+      <button class="bs-tab" data-cat="sketch">✏️ Sketch</button>
+      <button class="bs-tab" data-cat="ink">🖊️ Ink</button>
+      <button class="bs-tab" data-cat="watercolor">💧 Watercolor</button>
+      <button class="bs-tab" data-cat="effects">✨ Effects</button>
+      <button class="bs-tab" data-cat="arabic">🕌 Arabic</button>
+      <button class="bs-tab" data-cat="calligraphy">✒️ Calli</button>
+    </div>
+
+    <!-- Grid -->
+    <div class="brush-sheet-grid-wrap">
+      <div class="brush-sheet-grid" id="brush-sheet-grid"></div>
+    </div>
+
+    <!-- Bottom Controls: Size / Opacity / Color -->
+    <div class="brush-sheet-controls">
+      <div class="bs-control-row">
+        <span class="bs-control-label">Size</span>
+        <input type="range" class="bs-slider size-slider" id="bs-size" min="1" max="200" value="20">
+        <span class="bs-control-value" id="bs-size-val">20</span>
+      </div>
+      <div class="bs-control-row">
+        <span class="bs-control-label">Opacity</span>
+        <input type="range" class="bs-slider opacity-slider" id="bs-opacity" min="1" max="100" value="100">
+        <span class="bs-control-value" id="bs-opacity-val">100%</span>
+        <button class="bs-color-btn" id="bs-color-btn" title="Color" aria-label="Pick color"></button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Robust suppression of Vite/HMR ResizeObserver errors
+    window.addEventListener('error', (e) => {
+      if (e.message?.includes('ResizeObserver' || e.message?.includes('loop completed'))) {
+        const overlay = document.querySelector('vite-error-overlay');
+        if (overlay) overlay.remove();
+        e.stopImmediatePropagation();
+        e.preventDefault();
+      }
+    });
+
+    // Handle ResizeObserver error specifically if it's not a standard ErrorEvent
+    const _ResizeObserver = window.ResizeObserver;
+    window.ResizeObserver = class ResizeObserver extends _ResizeObserver {
+      constructor(callback) {
+        super((entries, observer) => {
+          window.requestAnimationFrame(() => {
+            if (!Array.isArray(entries) || !entries.length) return;
+            callback(entries, observer);
+          });
+        });
+      }
+    };
+  </script>
+
+    <!-- Guides & Symmetry Panel -->
+    <div id="guides-panel" class="panel-floating glass hidden" style="left: 50%; transform: translateX(-50%); top: 60px; width: 280px; padding: 15px; border-radius: 12px; z-index: 1000; position: absolute;">
+      <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h3 style="margin:0; font-size:14px; font-weight:600; color: var(--text-primary);">Spatial Guides</h3>
+        <button id="guides-close" class="small-btn" style="opacity:0.6; background:transparent; color:white; border:none; cursor:pointer; font-size:16px;">✕</button>
+      </div>
+
+      <!-- Perspective Section -->
+      <div class="setting-row" style="margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:12px; font-weight:500; color: #ccc;">Perspective Grid</span>
+          <label class="switch" style="position: relative; display: inline-block; width: 34px; height: 18px;">
+            <input type="checkbox" id="check-perspective" style="opacity: 0; width: 0; height: 0;">
+            <span class="slider round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 34px;"></span>
+          </label>
+        </div>
+        <div id="persp-controls" style="display:flex; gap:8px; opacity:0.5; pointer-events:none;">
+          <button class="small-btn persp-type active" data-type="1" style="flex:1; font-size:10px; padding:4px;">1-Pt</button>
+          <button class="small-btn persp-type" data-type="2" style="flex:1; font-size:10px; padding:4px;">2-Pt</button>
+          <button class="small-btn persp-type" data-type="3" style="flex:1; font-size:10px; padding:4px;">3-Pt</button>
+        </div>
+      </div>
+
+      <hr style="border:0; border-top:1px solid rgba(255,255,255,0.08); margin:15px 0;">
+
+      <!-- Symmetry Section -->
+      <div class="setting-row">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:12px; font-weight:500; color: #ccc;">Symmetry Engine</span>
+          <label class="switch" style="position: relative; display: inline-block; width: 34px; height: 18px;">
+            <input type="checkbox" id="check-symmetry" style="opacity: 0; width: 0; height: 0;">
+            <span class="slider round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 34px;"></span>
+          </label>
+        </div>
+        <div id="sym-controls" style="display:flex; flex-direction:column; gap:10px; opacity:0.5; pointer-events:none;">
+          <div style="display:flex; gap:6px;">
+            <button class="small-btn sym-type active" data-type="mirror-v" style="flex:1; font-size:10px; padding:4px;">Vertical</button>
+            <button class="small-btn sym-type" data-type="mirror-h" style="flex:1; font-size:10px; padding:4px;">Horizontal</button>
+            <button class="small-btn sym-type" data-type="radial" style="flex:1; font-size:10px; padding:4px;">Radial</button>
+          </div>
+          
+          <div id="radial-options" style="display:none;">
+            <div style="display:flex; justify-content:space-between; font-size:10px; color:#888; margin-bottom:4px;">
+              <span>Radial Segments</span>
+              <span id="radial-lines-val">8</span>
+            </div>
+            <input type="range" id="range-radial-lines" min="2" max="32" value="8" class="modern-slider" style="width: 100%;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Artboard / Page Manager -->
+    <div id="page-manager">
+      <div class="page-list-container">
+        <div id="page-list" class="page-row">
+          <div class="page-thumb active" data-index="0">Page 1</div>
+        </div>
+        <button id="btn-add-page" class="add-page-btn" title="Add New Artboard">
+          <span>+</span> Add Page
+        </button>
+      </div>
+    </div>
+    
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>

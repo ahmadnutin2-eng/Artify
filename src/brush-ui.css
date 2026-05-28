@@ -1,0 +1,413 @@
+/* ════════════════════════════════════════════
+   BRUSH BOTTOM SHEET — Artify-style
+   ════════════════════════════════════════════ */
+
+/* ── Backdrop ── */
+#brush-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 300;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+#brush-sheet-backdrop.visible {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* ── Sheet Container ── */
+#brush-bottom-sheet {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 301;
+  background: #141417;
+  border-radius: 24px 24px 0 0;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.42s cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
+  max-height: 88vh;
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.6), 0 -1px 0 rgba(255, 255, 255, 0.06);
+}
+#brush-bottom-sheet.open {
+  transform: translateY(0);
+}
+#brush-bottom-sheet.snap-half {
+  max-height: 48vh;
+}
+
+/* ── Drag Handle ── */
+.brush-sheet-handle {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0 4px;
+  cursor: grab;
+  flex-shrink: 0;
+}
+.brush-sheet-handle:active { cursor: grabbing; }
+.brush-sheet-handle-bar {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ── Header ── */
+.brush-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 20px 12px;
+  flex-shrink: 0;
+}
+.brush-sheet-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.3px;
+}
+.brush-sheet-close {
+  width: 30px;
+  height: 30px;
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+.brush-sheet-close:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+/* ── Category Tabs ── */
+.brush-sheet-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 12px;
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.brush-sheet-tabs::-webkit-scrollbar { display: none; }
+
+.bs-tab {
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+.bs-tab:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+.bs-tab.active {
+  background: rgba(139, 92, 246, 0.2);
+  border-color: rgba(139, 92, 246, 0.6);
+  color: #a78bfa;
+  font-weight: 600;
+}
+
+/* ── Brushes Grid ── */
+.brush-sheet-grid-wrap {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 12px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.1) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+.brush-sheet-grid-wrap::-webkit-scrollbar { width: 3px; }
+.brush-sheet-grid-wrap::-webkit-scrollbar-track { background: transparent; }
+.brush-sheet-grid-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+.brush-sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding-bottom: 4px;
+}
+
+/* ── Brush Card ── */
+.bs-card {
+  background: #1e1e24;
+  border: 1.5px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.22s ease;
+  position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.bs-card:active {
+  transform: scale(0.95);
+}
+.bs-card.active {
+  border-color: rgba(139, 92, 246, 0.7);
+  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.4), 0 4px 20px rgba(139, 92, 246, 0.2);
+  background: #1d1926;
+}
+.bs-card.active::after {
+  content: '✓';
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 10px;
+  color: #a78bfa;
+  font-weight: 700;
+}
+
+/* Brush stroke preview canvas */
+.bs-card-preview {
+  display: block;
+  width: 100%;
+  height: 60px;
+  background: #111114;
+  border-radius: 0;
+}
+
+/* Card label */
+.bs-card-label {
+  padding: 6px 8px 7px;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.1px;
+}
+
+/* ── Bottom Controls (Size / Opacity / Color) ── */
+.brush-sheet-controls {
+  flex-shrink: 0;
+  padding: 10px 20px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #141417;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+.bs-control-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bs-control-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 500;
+  width: 56px;
+  flex-shrink: 0;
+}
+
+.bs-control-value {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  width: 36px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Custom Range Sliders */
+.bs-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.1);
+}
+.bs-slider.size-slider {
+  background: linear-gradient(to right, #a78bfa var(--val, 20%), rgba(255,255,255,0.08) var(--val, 20%));
+}
+.bs-slider.opacity-slider {
+  background: linear-gradient(to right, #ec4899 var(--val, 100%), rgba(255,255,255,0.08) var(--val, 100%));
+}
+.bs-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  cursor: pointer;
+  border: none;
+  transition: transform 0.15s;
+}
+.bs-slider::-webkit-slider-thumb:active {
+  transform: scale(1.2);
+}
+.bs-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  cursor: pointer;
+  border: none;
+}
+
+/* Color Button */
+.bs-color-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(255,255,255,0.3);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+  background: #000;
+}
+.bs-color-btn:active {
+  transform: scale(0.9);
+}
+
+/* ── Brush Button in Top Bar ── */
+#btn-brush-library {
+  position: relative;
+}
+#btn-brush-library .active-brush-dot {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #a78bfa;
+  border: 1.5px solid #1e1e24;
+}
+
+/* ── BRUSH CATEGORY TABS (old sidebar — keeping for compatibility) ── */
+#brush-cat-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.bcat-btn {
+  padding: 5px 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+  font-family: inherit;
+  white-space: nowrap;
+}
+.bcat-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+.bcat-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* ── BRUSH LIBRARY GRID (old sidebar) ── */
+#brush-library {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.brush-lib-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+.brush-lib-item::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: transparent;
+  transition: background var(--transition);
+}
+.brush-lib-item:hover { border-color: rgba(255,255,255,0.12); }
+.brush-lib-item.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.brush-lib-item.active::before { background: var(--accent); }
+
+.brush-lib-emoji { font-size: 18px; flex-shrink: 0; width: 26px; text-align: center; }
+.brush-lib-info { flex: 1; min-width: 0; }
+.brush-lib-name { font-size: 13px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brush-lib-name-ar { font-size: 11px; color: var(--text-secondary); direction: rtl; }
+.brush-lib-preview { width: 60px; height: 28px; flex-shrink: 0; border-radius: 4px; background: var(--bg-surface); border: 1px solid var(--border); }
+
+/* ── UI COMPONENTS (toggle switches etc.) ── */
+.toggle-switch {
+  position: relative; display: inline-block;
+  width: 36px; height: 20px; cursor: pointer;
+}
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-track {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border); border-radius: 20px; transition: .2s;
+}
+.toggle-track:before {
+  position: absolute; content: "";
+  height: 14px; width: 14px; left: 2px; bottom: 2px;
+  background-color: #888; border-radius: 50%; transition: .2s;
+}
+.toggle-switch input:checked + .toggle-track { background-color: var(--accent-dim); border-color: var(--accent); }
+.toggle-switch input:checked + .toggle-track:before { transform: translateX(16px); background-color: var(--accent); }
+
+.grad-sample-btn {
+  position: absolute; top: 2px; right: 2px;
+  width: 18px; height: 18px;
+  background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 4px; color: #fff; font-size: 11px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.2s; z-index: 2;
+}
+.grad-sample-btn:hover { background: var(--accent); border-color: #fff; }
+.grad-sample-btn.sampling { background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse-border 1s infinite; }
+
+@keyframes pulse-border {
+  0% { outline: 0px solid rgba(139, 92, 246, 0.5); }
+  50% { outline: 4px solid rgba(139, 92, 246, 0); }
+  100% { outline: 0px solid rgba(139, 92, 246, 0); }
+}
+
+.toggle-switch.small { width: 30px; height: 16px; }
+.toggle-switch.small .toggle-track:before { width: 12px; height: 12px; left: 1.5px; bottom: 1.5px; }
+.toggle-switch.small input:checked + .toggle-track:before { transform: translateX(11px); }

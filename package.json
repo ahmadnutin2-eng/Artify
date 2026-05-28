@@ -1,0 +1,22 @@
+{
+  "name": "drawing-app",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "server": "node server/index.cjs"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.3.0",
+    "terser": "^5.46.1",
+    "vite": "^5.2.0"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/core": "^8.3.0",
+    "ws": "^8.17.0"
+  }
+}
