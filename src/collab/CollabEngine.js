@@ -30,7 +30,10 @@ export class CollabEngine {
 
     // Determine server URL
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = import.meta.env?.VITE_WS_URL || `${proto}//${location.hostname}:3001`;
+    const host = import.meta.env?.VITE_WS_URL || 
+                 ((location.hostname === 'localhost' || location.hostname === '127.0.0.1') 
+                   ? `${proto}//${location.hostname}:3001` 
+                   : 'wss://artify-b08a.onrender.com');
     this.serverUrl = host;
 
     this._strokeQueue = [];
